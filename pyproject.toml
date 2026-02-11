@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "auth2fa"
+version = "0.1.0"
+authors = [
+  { name="horrible-gh", email="shinjpn1@gmail.com" },
+]
+description = "TOTP-based Two-Factor Authentication Library for Python"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+keywords = [
+    "auth2fa", "2fa", "totp", "authentication", "otp", "two-factor"
+]
+dependencies = [
+    "pyotp",
+    "qrcode",
+    "Pillow"
+]
+
+[project.optional-dependencies]
+sql = ["sqloader"]
+
+[project.urls]
+"Homepage" = "https://github.com/horrible-gh/auth2fa"
+"Bug Tracker" = "https://github.com/horrible-gh/auth2fa/issues"
+
+[tool.setuptools.package-data]
+auth2fa = ["sql/**/*.sql"]

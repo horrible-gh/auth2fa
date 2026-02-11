@@ -1,0 +1,3 @@
+recursive-include auth2fa *.sql
+include README.md
+include LICENSE
