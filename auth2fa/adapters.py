@@ -16,7 +16,7 @@ class Auth2FAAdapter:
 
     Features:
     - Automatic SQL file loading from auth2fa/sql directory
-    - Parameter binding conversion (SQLite vs MySQL)
+    - Parameter binding conversion (SQLite vs MySQL vs PostgreSQL)
     - SQL dialect conversion (ON CONFLICT vs ON DUPLICATE KEY UPDATE)
     - Support for both SELECT and DML statements
 
@@ -34,7 +34,7 @@ class Auth2FAAdapter:
         Initialize the adapter.
 
         Args:
-            db_instance: sqloader database instance (SQLiteWrapper or MySQLWrapper)
+            db_instance: sqloader database instance (SQLiteWrapper, MySQLWrapper, or PostgreSQLWrapper)
         """
         self.db = db_instance
         import auth2fa as _auth2fa_mod
@@ -46,7 +46,14 @@ class Auth2FAAdapter:
             from sqloader._prototype import MYSQL
             return getattr(self.db, "db_type", None) == MYSQL
         except ImportError:
-            # If sqloader._prototype is not available, check alternative methods
+            return False
+
+    def _is_postgres(self):
+        """Check if the database is PostgreSQL."""
+        try:
+            from sqloader._prototype import POSTGRESQL
+            return getattr(self.db, "db_type", None) == POSTGRESQL
+        except ImportError:
             return False
 
     def _prepare(self, sql, kwargs):
@@ -57,6 +64,7 @@ class Auth2FAAdapter:
         - SQLite: :param_name format, params as dict
         - MySQL: %s format (positional), params as list
                  ON CONFLICT → ON DUPLICATE KEY UPDATE
+        - PostgreSQL: %(param_name)s format, params as dict
 
         Args:
             sql: SQL query string
@@ -86,7 +94,12 @@ class Auth2FAAdapter:
                 flags=re.IGNORECASE,
             )
             params = [kwargs[name] for name in param_names]
+        elif self._is_postgres():
+            # PostgreSQL (psycopg2): :param_name → %(param_name)s
+            sql = re.sub(r":(\w+)", r"%(\1)s", sql)
+            params = kwargs
         else:
+            # SQLite: :param_name as-is
             params = kwargs
 
         return sql, params
