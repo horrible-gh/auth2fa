@@ -56,6 +56,8 @@ if tfa.verify("user123", "173829"):
 
 ### SQL Mode (with sqloader)
 
+**Option 1: Using sqloader directly** (if sqloader supports auth2fa's execute interface)
+
 ```python
 from auth2fa import TwoFactorAuth
 from sqloader import SQLite3  # or MySQL
@@ -70,6 +72,26 @@ tfa = TwoFactorAuth(sq=sq, issuer="FileForge")
 result = tfa.setup("user123", username="shin")
 tfa.activate("user123", "482901")
 tfa.verify("user123", "173829")
+```
+
+**Option 2: Using Auth2FAAdapter** (for sqloader's raw database instances)
+
+```python
+from auth2fa import TwoFactorAuth, Auth2FAAdapter
+from sqloader import SQLiteWrapper  # or MySQLWrapper
+
+# Initialize sqloader database instance
+db = SQLiteWrapper('database.db')
+
+# Wrap with adapter
+adapter = Auth2FAAdapter(db)
+
+# Initialize with SQL storage
+tfa = TwoFactorAuth(sq=adapter, issuer="MyApp")
+
+# Use normally
+result = tfa.setup("user123", username="john@example.com")
+tfa.activate("user123", "482901")
 ```
 
 ### Custom Storage Path
@@ -214,12 +236,61 @@ Requires `auth2fa[sql]` installation.
 **Table Schema:**
 ```sql
 CREATE TABLE totp_auth (
-    user_id VARCHAR(64) PRIMARY KEY,
-    secret VARCHAR(64) NOT NULL,
+    user_id VARCHAR(255) PRIMARY KEY,
+    secret VARCHAR(255) NOT NULL,
     enabled BOOLEAN DEFAULT FALSE,
     recovery_codes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Indexes
+CREATE INDEX idx_totp_auth_enabled ON totp_auth(enabled);
+```
+
+**Database Compatibility:**
+- ✅ SQLite3
+- ✅ MySQL / MariaDB
+- ✅ PostgreSQL
+
+#### Auth2FAAdapter
+
+The `Auth2FAAdapter` is an optional adapter that bridges auth2fa with sqloader's database instances. It's automatically available when sqloader is installed.
+
+**Features:**
+- 🔄 Automatic SQL file loading from `auth2fa/sql` directory
+- 🔀 Parameter binding conversion (SQLite `:param` vs MySQL `%s`)
+- 🗃️ SQL dialect conversion (PostgreSQL `ON CONFLICT` vs MySQL `ON DUPLICATE KEY UPDATE`)
+- 📊 Support for both SELECT and DML statements
+
+**When to use:**
+- You're using sqloader's `SQLiteWrapper` or `MySQLWrapper` directly
+- You need automatic database dialect conversion
+- You want to avoid sqloader dependency in auth2fa core
+
+**Example:**
+```python
+from auth2fa import Auth2FAAdapter
+from sqloader import SQLiteWrapper
+
+# Your existing sqloader setup
+db = SQLiteWrapper('app.db')
+
+# Wrap it for auth2fa
+adapter = Auth2FAAdapter(db)
+
+# Use with TwoFactorAuth
+from auth2fa import TwoFactorAuth
+tfa = TwoFactorAuth(sq=adapter, issuer="MyApp")
+```
+
+**Without sqloader:**
+If sqloader is not installed, `Auth2FAAdapter` won't be available, but auth2fa will still work with JSON storage:
+```python
+from auth2fa import TwoFactorAuth
+
+# Falls back to JSON storage
+tfa = TwoFactorAuth(issuer="MyApp")  # Uses ./totp_data.json
 ```
 
 ### Custom Storage Backend
